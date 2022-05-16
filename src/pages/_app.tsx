@@ -1,103 +1,51 @@
-/* eslint-disable react/jsx-no-constructed-context-values */
-import {NextComponentType, NextPageContext} from 'next';
-import type {AppContext, AppProps} from 'next/app';
-import {appWithTranslation} from 'next-i18next';
-import React, {ReactNode} from 'react';
-import {Hydrate, QueryClient, QueryClientProvider} from 'react-query';
+import React from 'react';
+import {Cookies, CookiesProvider} from 'react-cookie';
 import {ReactQueryDevtools} from 'react-query/devtools';
-import {ThemeProvider} from 'styled-components';
+import {canUseDom} from '@plaza-ui/utils/lib/canUseDom';
+import type {AppContext} from 'next/app';
+import {appWithTranslation} from 'next-i18next';
 
-import MainLayout from '@/components/layouts/main';
-import CookiesName from '@/constants/cookies-name';
-import {ThemeTypes} from '@/constants/theme-types';
-import DeviceTypeContext from '@/contexts/device-type-context';
-import ThemeContext from '@/contexts/theme-context';
-import {getCookie, setCookie} from '@/helpers/cookie';
-import plazaUiTheme from '@/providers/theme/plaza-ui-theme';
-// import GlobalStyle from '@/providers/theme/GlobalStyle';
-import {DeviceType, GetLayout, ThemeType} from '@/types/main';
-// import {reduxWrap} from '@/redux/store';
+import {ThemeProvider} from '@/providers/theme/theme-provider';
+import {DeviceTypes} from '@/src/constants/device-types';
+import graphQLClient from '@/src/graphql/graphql-client';
+import {parseCookies} from '@/src/helpers/parse-cookie';
+import {setHeaders} from '@/src/helpers/set-headers';
+import {useGetLayout} from '@/src/hooks/use-get-layout';
+import DeviceTypeProvider from '@/src/providers/device-type/device-type-provider';
+import QueryClientProvider from '@/src/providers/query-client/query-client-provider';
+import type {AppExtendedProps} from '@/types/main';
 import CheckUserAgent from '@/utils/check-user-agent';
 
-type AppExtendedProps = {
-  previousTheme: ThemeType;
-  deviceType: DeviceType;
-  Component: NextComponentType<NextPageContext, unknown, Record<string, unknown>> & {
-    getLayout: GetLayout;
-  };
-} & AppProps;
+const App = ({Component, pageProps, deviceType, cookies}: AppExtendedProps) => {
+  const getLayout = useGetLayout({Component, deviceType});
 
-const App = ({Component, pageProps, previousTheme, deviceType}: AppExtendedProps) => {
-  const [theme, setTheme] = React.useState(previousTheme);
-  const [queryClient] = React.useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 20 * 1000,
-          },
-        },
-      }),
-  );
-
-  const toggleTheme = async () => {
-    if (theme === ThemeTypes.LIGHT) {
-      setTheme(ThemeTypes.DARK);
-      setCookie(CookiesName.Theme, ThemeTypes.DARK);
-    } else {
-      setTheme(ThemeTypes.LIGHT);
-      setCookie(CookiesName.Theme, ThemeTypes.LIGHT);
-    }
-  };
-
-  const getTheme = (themeName: ThemeType) => {
-    switch (themeName) {
-      case ThemeTypes.DARK:
-        return plazaUiTheme;
-      default:
-        return plazaUiTheme;
-    }
-  };
-
-  const getLayout =
-    Component.getLayout ||
-    ((page: ReactNode) => <MainLayout deviceType={deviceType}>{page}</MainLayout>);
   return (
-    <QueryClientProvider client={queryClient}>
-      <Hydrate state={pageProps.dehydratedState}>
-        <ThemeContext.Provider value={{theme, toggleTheme}}>
-          <ThemeProvider theme={getTheme(theme)}>
-            {/* <GlobalStyle /> */}
-
-            {getLayout(
-              <DeviceTypeContext.Provider value={{deviceType}}>
-                <Component deviceType={deviceType} {...pageProps} />
-              </DeviceTypeContext.Provider>,
-              deviceType,
-            )}
-          </ThemeProvider>
-        </ThemeContext.Provider>
-        <ReactQueryDevtools />
-      </Hydrate>
+    <QueryClientProvider dehydratedState={pageProps.dehydratedState}>
+      <CookiesProvider cookies={canUseDom ? undefined : cookies}>
+        <ThemeProvider>
+          {getLayout(
+            <DeviceTypeProvider deviceType={deviceType}>
+              <Component deviceType={deviceType} {...pageProps} />
+            </DeviceTypeProvider>,
+            deviceType,
+          )}
+        </ThemeProvider>
+      </CookiesProvider>
+      <ReactQueryDevtools />
     </QueryClientProvider>
   );
 };
 
 App.getInitialProps = async ({Component, ctx}: AppContext) => {
-  let pageProps = {};
-  let previousTheme = null;
-  const userAgent = ctx.req.headers['user-agent'];
-  const deviceType = CheckUserAgent(userAgent);
+  const pageProps = (await Component?.getInitialProps?.(ctx)) || {};
+  const cookies = new Cookies(await parseCookies(ctx.req));
+  const userAgent = ctx?.req?.headers['user-agent'];
+  const deviceType = userAgent ? CheckUserAgent(userAgent) : DeviceTypes.DESKTOP;
+  cookies && graphQLClient().setHeaders(setHeaders(cookies));
 
-  if (Component.getInitialProps) {
-    pageProps = await Component.getInitialProps(ctx);
-  }
-  if (ctx.req) {
-    previousTheme = await getCookie(CookiesName.Theme, ctx.req.headers.cookie);
-  }
   return {
     pageProps,
-    previousTheme,
+    cookies,
     deviceType,
   };
 };

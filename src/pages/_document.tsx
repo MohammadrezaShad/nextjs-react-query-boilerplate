@@ -32,9 +32,7 @@ class MyDocument extends Document {
   render() {
     return (
       <Html>
-        <Head>
-          <link href='/font/style.css' rel='stylesheet' />
-        </Head>
+        <Head />
         <body>
           <Main />
           <div id='portal' />

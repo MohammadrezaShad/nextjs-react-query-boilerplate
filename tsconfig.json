@@ -4,7 +4,7 @@
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "sourceMap": true,
     "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -38,7 +38,8 @@
       "@/slices/*": ["src/redux/slices/*"],
       "@/redux/*": ["src/redux/*"],
       "@/types/*": ["src/types/*"],
-      "@/services/*": ["src/services/*"]
+      "@/services/*": ["src/services/*"],
+      "@/styles/*": ["src/styles/*"]
     },
     "strict": true,
     "typeRoots": ["node_modules/@types", "src/types"],

@@ -1,5 +1,7 @@
 /* eslint-disable no-unused-vars */
-import {FC, ReactChild, ReactNode} from 'react';
+import type {FC, ReactChild, ReactNode} from 'react';
+import type {Cookies} from 'react-cookie';
+import type {AppProps} from 'next/app';
 
 import {DeviceTypes} from '@/constants/device-types';
 import {ThemeTypes} from '@/constants/theme-types';
@@ -18,3 +20,11 @@ export type LayoutProps = {
 export type ValueOf<T> = T[keyof T];
 
 export type Component = React.ElementType | keyof JSX.IntrinsicElements;
+
+export type AppExtendedProps = {
+  cookies: Cookies;
+  deviceType: DeviceType;
+  Component: NextComponentType<NextPageContext, unknown, Record<string, unknown>> & {
+    getLayout: GetLayout;
+  };
+} & AppProps;
